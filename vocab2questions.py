@@ -1,8 +1,8 @@
 import xml.etree.ElementTree as ET
 import os
 
-# Ensure the file path is correct
-file_path = 'C:/Users/jdeno/Desktop/Adobe_video/Adobe_video_vocab.xml'
+# Ensure the file path is correct | enter the file path location
+file_path = ''
 
 try:
     tree = ET.parse(file_path)
