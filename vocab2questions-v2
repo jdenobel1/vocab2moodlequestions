@@ -1,0 +1,90 @@
+import xml.etree.ElementTree as ET
+import os
+import random
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+def select_file():
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(
+        title="Select Vocabulary XML File",
+        filetypes=[("XML Files", "*.xml")]
+    )
+    return file_path
+
+def select_output_folder():
+    root = tk.Tk()
+    root.withdraw()
+    folder_path = filedialog.askdirectory(title="Select Output Folder for Question Files")
+    return folder_path
+
+def generate_aiken_questions(glossary_data):
+    questions_by_unit = {}
+    for unit, items in glossary_data.items():
+        questions = []
+        for index, (definition, concept) in enumerate(items):
+            incorrect_options = [c for d, c in items if c != concept]
+            if len(incorrect_options) >= 3:
+                incorrect_options = random.sample(incorrect_options, 3)
+            else:
+                incorrect_options.extend(['Dummy1', 'Dummy2', 'Dummy3'][:3 - len(incorrect_options)])
+            options = incorrect_options + [concept]
+            random.shuffle(options)
+            correct_answer = options.index(concept)
+
+            question_text = f"{index + 1}. {definition}\n"
+            for i, option in enumerate(options):
+                question_text += f"{chr(65+i)}. {option}\n"
+            question_text += f"ANSWER: {chr(65+correct_answer)}\n"
+            questions.append(question_text)
+        questions_by_unit[unit] = questions
+    return questions_by_unit
+
+def main():
+    try:
+        file_path = select_file()
+        if not file_path:
+            print("❌ No file selected.")
+            return
+
+        output_dir = select_output_folder()
+        if not output_dir:
+            print("❌ No output folder selected.")
+            return
+
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+
+        glossary_data = {}
+        for entry in root.findall(".//ENTRY"):
+            concept = entry.find("CONCEPT").text.strip()
+            definition = entry.find("DEFINITION").text.strip()
+            category = entry.find(".//CATEGORY/NAME").text.strip()
+
+            if category not in glossary_data:
+                glossary_data[category] = []
+
+            glossary_data[category].append((definition, concept))
+
+        aiken_questions_by_unit = generate_aiken_questions(glossary_data)
+
+        for unit, questions in aiken_questions_by_unit.items():
+            file_name = f'vocab_question_{unit.replace(" ", "_").lower()}.txt'
+            output_path = os.path.join(output_dir, file_name)
+            with open(output_path, 'w', encoding='utf-8') as file:
+                for question in questions:
+                    file.write(question + "\n")
+            print(f"✅ Questions for \"{unit}\" saved to: {output_path}")
+
+        messagebox.showinfo("Success", "All question files have been generated successfully!")
+
+    except FileNotFoundError as fnf_error:
+        messagebox.showerror("File Not Found", str(fnf_error))
+    except ET.ParseError:
+        messagebox.showerror("Parse Error", "Error parsing the XML file. Please check that it's properly formatted.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An unexpected error occurred:\n{e}")
+
+if __name__ == "__main__":
+    main()
